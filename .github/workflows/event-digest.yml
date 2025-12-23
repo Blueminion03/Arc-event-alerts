@@ -1,0 +1,40 @@
+name: ARC Event Digest
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # runs every 5 minutes
+  workflow_dispatch:        # allows manual "Run workflow"
+
+permissions:
+  contents: write           # required so state.json can be committed
+
+jobs:
+  check-events:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run ARC event digest
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python event_digest.py
+
+      - name: Save state (prevents repost spam)
+        run: |
+          if git status --porcelain | grep -q "state.json"; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "Update event digest state"
+            git push
+          fi
